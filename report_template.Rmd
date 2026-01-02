@@ -10,7 +10,7 @@ params:
 \includegraphics[width=0.3\textwidth]{logo_rect.png}
 
 \begin{center}
-  {\LARGE `r params$county_attributes$Value[params$county_attributes$Attribute == "County Name"]` County}
+  {\LARGE `r params$county_attributes$Value[params$county_attributes$Attribute == "County Name"]` County, `r params$county_attributes$Value[params$county_attributes$Attribute == "State Name"]`}
 \end{center}
 
 \begin{center}

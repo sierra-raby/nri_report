@@ -26,24 +26,51 @@ get_field_aliases <- function(layer_url) {
 }
 field_aliases <- get_field_aliases(layer_url)
 
-# query REST API to populate county drop down menu
-get_county_list <- function(layer_url, n = 100) {
-  res <- POST(paste0(layer_url, "/query"), body = list(
-    where = "1=1",
-    outFields = "COUNTY,OBJECTID",
-    f = "json",
-    returnGeometry = "false",
-    resultRecordCount = n
-  ), encode = "form")
-  txt <- content(res, "text")
-  parsed <- fromJSON(txt)
-  # get attributes
-  counties_df <- parsed$features$attributes
-  rownames(counties_df) <- NULL
-  return(counties_df)
+# get state names
+get_all_states <- function(layer_url, page_size = 1000) {
+  all_states <- character()
+  offset <- 0
+  repeat {
+    res <- POST(paste0(layer_url, "/query"), body = list(
+      where = "1=1",
+      outFields = "STATE",
+      f = "json",
+      returnGeometry = "false",
+      resultRecordCount = page_size,
+      resultOffset = offset
+    ), encode = "form")
+    txt <- content(res, "text")
+    parsed <- fromJSON(txt)
+    if (is.null(parsed$features) || length(parsed$features) == 0) break
+    states <- unique(parsed$features$attributes$STATE)
+    all_states <- unique(c(all_states, states))
+    # Check if we've reached the end
+    if (length(parsed$features$attributes$STATE) < page_size) break
+    offset <- offset + page_size
+  }
+  return(sort(all_states))
 }
 
-county_list <- get_county_list(layer_url, 100)
+state_list <- get_all_states(layer_url)
+
+# query REST API to populate county drop down menu
+# get_county_list <- function(layer_url, n = 100) {
+#   res <- POST(paste0(layer_url, "/query"), body = list(
+#     where = "1=1",
+#     outFields = "COUNTY,OBJECTID",
+#     f = "json",
+#     returnGeometry = "false",
+#     resultRecordCount = n
+#   ), encode = "form")
+#   txt <- content(res, "text")
+#   parsed <- fromJSON(txt)
+#   # get attributes
+#   counties_df <- parsed$features$attributes
+#   rownames(counties_df) <- NULL
+#   return(counties_df)
+# }
+# 
+# county_list <- get_county_list(layer_url, 100)
 # print(county_list)
 
 # app --------------------------------------------------------------------------
@@ -51,8 +78,10 @@ ui <- fluidPage(
   titlePanel("National Risk Index PDF Report Generator"),
   sidebarLayout(
     sidebarPanel(
-      selectInput("county", "Select a County:",
-                  choices = setNames(county_list$OBJECTID, county_list$COUNTY)),
+      # selectInput("county", "Select a County:",
+      #             choices = setNames(county_list$OBJECTID, county_list$COUNTY)),
+      selectInput("state", "Select a State:", choices = state_list),
+      selectInput("county", "Select a County:", choices = NULL),
       downloadButton("downloadReport", "Download PDF Report")
     ),
     mainPanel(
@@ -62,6 +91,29 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
+  # get counties for selected state
+  get_counties_by_state <- function(layer_url, state) {
+    res <- POST(paste0(layer_url, "/query"), body = list(
+      where = paste0("STATE='", state, "'"),
+      outFields = "COUNTY,OBJECTID",
+      f = "json",
+      returnGeometry = "false",
+      resultRecordCount = 1000
+    ), encode = "form")
+    txt <- content(res, "text")
+    parsed <- fromJSON(txt)
+    counties_df <- parsed$features$attributes
+    return(counties_df)
+  }
+  
+  # Update county dropdown when state changes
+  observeEvent(input$state, {
+    counties_df <- get_counties_by_state(layer_url, input$state)
+    updateSelectInput(session, "county",
+                      choices = setNames(counties_df$OBJECTID, counties_df$COUNTY))
+  })
+  
+  
   # get full attributes for selected county by OBJECTID
   get_county_attributes <- function(objectid) {
     res <- POST(paste0(layer_url, "/query"), body = list(
@@ -113,7 +165,7 @@ server <- function(input, output, session) {
         county_attributes = vertical_table_filtered
       )
       rmarkdown::render(
-        input = here("spatial_data_scientist", "RAPT", "NRI", "report", "nri_report", "report_template.Rmd"),
+        input = here("report_template.Rmd"), # "spatial_data_scientist", "RAPT", "NRI", "report", "nri_report", 
         output_file = file,
         params = params,
         envir = new.env(parent = globalenv())
@@ -126,8 +178,8 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 
 # NEXT
-# format table
-# then add state filter 
+# format table into subtables
+# add map
 # then add census tract option
 # then add webmap
 # then get preview 
