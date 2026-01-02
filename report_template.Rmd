@@ -1,0 +1,29 @@
+---
+title: "NRI Shiny Report"
+date: "`r Sys.Date()`"
+output: pdf_document
+params:
+  county_attributes: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Hello! Welcome to your personalized report.
+
+```{r nriTable, echo=FALSE}
+# if (!is.null(params$county_attributes)) {
+#   df <- params$county_attributes
+#   knitr::kable(t(df))  # try vertical table
+# }
+if (!is.null(params$county_attributes)) {
+  knitr::kable(params$county_attributes, col.names = c("Attribute", "Value"))
+}
+```
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
