@@ -1,16 +1,25 @@
 ---
-title: "NRI Shiny Report"
-date: "`r Sys.Date()`"
-output: pdf_document
+output: 
+  pdf_document:
+    latex_engine: xelatex
+mainfont: "Arial"
 params:
   county_attributes: NULL
 ---
 
+\includegraphics[width=0.3\textwidth]{logo_rect.png}
+
+\begin{center}
+  {\LARGE `r params$county_attributes$Value[params$county_attributes$Attribute == "County Name"]` County}
+\end{center}
+
+\begin{center}
+  \large \today
+\end{center}
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-Hello! Welcome to your personalized report.
 
 ```{r nriTable, echo=FALSE}
 # if (!is.null(params$county_attributes)) {
